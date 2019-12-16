@@ -9,6 +9,12 @@ def is_encryptor():
         print("Вы допустили ошибку!")
         exit()
 
+def moder(matrix):
+    for i in range(len(matrix)):
+            matrix[i][0] %= 26
+            matrix[i][0] = int(matrix[i][0]// 1)
+    return matrix
+
 def give_alphabet():
     alphabet = dict()
     j = 0
@@ -50,18 +56,17 @@ def draw_matrix(matrix, num=0):
             print('{:2}'.format(j), end = ' ')
         print('|')
 
-def is_determinant_zero(matrix):
+def give_determinant(matrix):
     det_1 = matrix[0][0] * matrix[1][1] * matrix[2][2] + matrix[0][1] * matrix [1][2] * matrix[2][0]
     det_1 += matrix[1][0] * matrix[2][1] * matrix[0][2]
 
     det_2 = matrix[0][2] * matrix[1][1] * matrix[2][0] + matrix[0][1] * matrix[1][0] * matrix[2][2]
     det_2 += matrix[0][0] * matrix[1][2] * matrix[2][1]
     print("\nDeterminant -", det_1 - det_2)
-    if det_1 - det_2 == 0:
-        return True
+    return det_1 - det_2
 
 def give_text():
-    text = input("\nНапишите текст, который нужно закодировать: ")
+    text = input("\nНапишите текст, который нужно закодировать/декодировать: ")
     text = text.upper()
     return text
 
@@ -79,16 +84,11 @@ def encryptor(matrix_1, matrix_2):
                 composition[i][0] += matrix_1[i][j] * matrix_2[j][0]
         return composition
 
-    def moder(composition):
-        for i in range(len(composition)):
-            composition[i][0] %= 26
-        return composition
-
     composition = compositor(matrix_1, matrix_2)
     mod_composition = moder(composition)
     return mod_composition
 
-def decryptor(matrix_1, matrix_2):
+def decryptor(matrix_1, matrix_2, determinant, alphabet):
 # I'm not shure I need this function \/
 #   def give_identity_matrix(matrix_1):
 #       identity_matrix = [[0 for i in range(len(matrix_1[j]))]for j in range(len(matrix_1))]x  
@@ -96,20 +96,85 @@ def decryptor(matrix_1, matrix_2):
 #           identity_matrix[i][i] = 1
 #       return identity_matrix
 
-    def give_inverse_matrix(matrix_1, indentity_matrix):
-        def give_matrix_minors(matrix_1):
-            minor_det = [[0 for i in range(len(matrix_1[j])-1)]for j in range(len(matrix_1)-1))]
-            matrix_minor = [[0 for i in range(len(matrix_1[j]))]for j in range(matrix_1)]
-            for i in len(matrix_1):
-                for j in len(matrix_1[i]):
+    def give_inverse_matrix(matrix_1, determinant):
+        def extended_euclidean_algorithm(determinant, alphabet):
+            alphabet_len = len(alphabet)
+            quotients = list()
+            quotient = int()
+            balance = determinant % alphabet_len
+            x = [1, 0]
+            while balance != 0:
+                balance = determinant % alphabet_len
+                quotient = determinant // alphabet_len
+                quotients.append(quotient)
+                determinant = alphabet_len
+                alphabet_len = balance
+            for i in range(2, len(quotients)+1):
+                x.append(x[i-2] - quotients[i-2] * x[i-1])
+            return x[-1]
 
-            pass
-        pass
+        def give_matrix_minors(matrix):
+            minor_det = [[0 for i in range(len(matrix[j])-1)]for j in range(len(matrix)-1)]
+            matrix_minor = [[0 for i in range(len(matrix[j]))]for j in range(len(matrix))]
+            lens = len(matrix)
+            for i in range(lens):
+                for j in range(lens):
+                    count_i = 0
+                    count_j = 0
+                    for det_i in range(lens):
+                        for det_j in range(lens):
+                            if det_i != i and det_j != j:
+                                if count_i == 2:
+                                    continue
+                                minor_det[count_i][count_j] = matrix[det_i][det_j]
+                                count_j += 1
+                                if count_j == 2:
+                                    count_i += 1
+                                    count_j = 0
+                    matrix_minor[i][j] = minor_det[0][0]*minor_det[1][1] - minor_det[0][1]*minor_det[1][0]
+            return matrix_minor
+
+        def give_algebraic_complement(matrix):
+            matrix_algebraic_complement = [[0 for i in range(len(matrix[j]))]for j in range(len(matrix))]
+            for i in range(len(matrix)):
+                for j in range(len(matrix)):
+                    matrix_algebraic_complement[i][j] = -1**((i+1)+(j+1))*matrix[i][j]
+            return matrix_algebraic_complement
+        
+        def matrix_transpose(matrix):
+            transposed_matrix = [[0 for i in range(len(matrix[j]))]for j in range(len(matrix))]
+            for i in range(len(matrix)):
+                for j in range(len(matrix)):
+                    transposed_matrix[i][j] = matrix[j][i]
+            return transposed_matrix
+
+        greatest_divisors_x = extended_euclidean_algorithm(determinant, alphabet)
+        matrix_minors = give_matrix_minors(matrix_1)
+        algebraic_complement = give_algebraic_complement(matrix_minors)
+        transposed_matrix = matrix_transpose(algebraic_complement)
+
+        inverse_matrix = [[0 for i in range(len(matrix_1[j]))]for j in range(len(matrix_1))]
+        for i in range(len(matrix_1)):
+            for j in range(len(matrix_1[i])):
+                inverse_matrix[i][j] = (1/determinant) * transposed_matrix[i][j]
+        return inverse_matrix
+    
+    def decrypt_inverse(matrix_1, matrix_2):
+        def compositor(matrix_1, matrix_2):
+            composition = [[0], [0], [0]]
+            for i in range(len(matrix_1)):
+                for j in range(len(matrix_2)):
+                    composition[i][0] += matrix_1[i][j] * matrix_2[j][0]
+            return composition
+                
+        composition = compositor(matrix_1, matrix_2)
+        mod_composition = moder(composition)
+        return mod_composition
+
 #   identity_matrix = give_identity_matrix(matrix_1)
-    inverse_matrix = give_inverse_matrix(matrix_1, identity_matrix)
-
-
-    pass
+    inverse_matrix = give_inverse_matrix(matrix_1, determinant)
+    decrypt_matrix = decrypt_inverse(inverse_matrix, matrix_2)
+    return decrypt_matrix
 
 def give_crypto_text(matrix, alphabet):
     crypto_text = str()
@@ -131,11 +196,11 @@ def main():
     key = give_key()
     matrix = give_matrix(key, alphabet)
     draw_matrix(matrix, 1)
-
-    if is_determinant_zero(matrix):
+    determinant = give_determinant(matrix)
+    if determinant == 0:
         print("Детерминант матрицы ключа выдает ноль! Выберите другой ключ")
         main()
-        exit()
+        exit() # Прерывание программы после нормального завершения через рекурсию
     print(draw_lines())
 
     crypto_text = give_text()
@@ -145,7 +210,7 @@ def main():
     if encrypt_value:
         crypto_matrix = encryptor(matrix, for_crypt_matrix)
     else:
-        crypto_matrix = decryptor(matrix, for_crypt_matrix)
+        crypto_matrix = decryptor(matrix, for_crypt_matrix, determinant, alphabet)
     draw_matrix(crypto_matrix, 2)
     crypto_text = give_crypto_text(crypto_matrix, alphabet)
 
